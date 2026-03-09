@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 from .database import engine, Base
 from . import models
@@ -6,11 +6,13 @@ from .schemas import PointCreate
 
 app = FastAPI()
 
-Base.metadata.create_all(bind = engine)
+DB_ENABLED = engine is not None
+
+if DB_ENABLED: Base.metadata.create_all(bind = engine)
 
 @app.get('/')
 def root():
-    return {"message" : "API Running"}
+    return {"message" : "API Running", "db_enabled": DB_ENABLED}
 
 @app.get("/health")
 def health():
@@ -18,12 +20,17 @@ def health():
 
 @app.get('/db-test')
 def db_test():
+    if not DB_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not configured")
     with engine.connect() as conn:
         result = conn.execute(text("SELECT * FROM points"))
         return {"db" : result}
     
 @app.post('/points')
 def create_point(point: PointCreate):
+    if not DB_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not configured")
+
     query = text("""
                 INSERT INTO points (name, geom)
                 VALUES (:name, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
@@ -42,6 +49,9 @@ def create_point(point: PointCreate):
 
 @app.get("/points/nearby")
 def nearby_points(lon: float, lat: float):
+    if not DB_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
     query = text("""
         SELECT id, name,
         ST_Distance(
