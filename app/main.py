@@ -12,7 +12,7 @@ if DB_ENABLED: Base.metadata.create_all(bind = engine)
 
 @app.get('/')
 def root():
-    return {"message" : "API Running", "db_enabled": DB_ENABLED}
+    return {"message" : "API Running from Github Actions deploy", "db_enabled": DB_ENABLED}
 
 @app.get("/health")
 def health():
